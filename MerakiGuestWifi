@@ -1,0 +1,90 @@
+
+function CheckFeedback() {
+  // Fetch the Manager email
+  // var emailRange = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sheet1").getRange("B2");
+  // var emailAddress = emailRange.getValues();
+
+  var headers = {
+    "X-Cisco-Meraki-API-Key": "[API_key]",
+    "Content-Type": "application/json"
+    };
+  // var url = 'https://n185.meraki.com/api/v0/networks/L_683984193406899880/cameras/Q2EV-26JS-69YW/snapshot';
+  var url = 'https://n185.meraki.com/api/v0/networks/L_667095694804279965/cameras/Q2HV-VELP-YEER/snapshot';  //felix's sg cxc MV22
+  var url2 = 'https://n185.meraki.com/api/v0/networks/L_667095694804284315/cameras/Q2HV-Q2WH-8JF6/snapshot'; //anson's TW cxc MV22
+
+  var subject = 'CX Alert';
+  var options = {
+    'method' : 'post',
+    'headers': {'X-Cisco-Meraki-API-Key': '[API_key]'},
+    'content-Type': 'application/json',
+    //'muteHttpExceptions': true
+     };
+  var options2 = {
+    'method' : 'post',
+    'headers': {'X-Cisco-Meraki-API-Key': '[API_key]'},
+    'content-Type': 'application/json',
+    //'muteHttpExceptions': true
+     };
+  // Fetch the feedback
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Feedback1");
+  var startRow = 2; // First row of data to process
+  var MaxRow = sheet.getDataRange().getValues().length;
+  var dataRange = sheet.getRange(startRow, 2, MaxRow, 5);
+  Logger.log(MaxRow);
+  // Fetch values for each row in the Range.
+  var data = dataRange.getValues();
+  Logger.log(data);
+  var k = 1
+  for (i in data) {
+    var data = dataRange.getValues();
+    k = k + 1
+    if (k == MaxRow+1) {
+    {break;}
+    }
+    var row = data[i];
+    var score = row[0];
+    var comment = row[1];
+    var emailAddr = row[2];
+    var dutyMgrEmail = row[3];
+    var action = row[4];
+
+    if (action == "" && score < 2.0) {
+      //CX score is bad. Send Email alert
+          //call Meraki camera API to take a snapshot
+          var response = UrlFetchApp.fetch(url, options);
+          var response2 = UrlFetchApp.fetch(url2, options2);
+          //Logger.log(response);
+
+          var json = response.getContentText();
+          var data = JSON.parse(json);
+          var snapshotURL = data.url;
+          var expiryDate = data.expiry;
+          //Logger.log(snapshotURL);
+          //Logger.log(expiryDate);
+          //Logger.log(urlLink);
+
+          var json2 = response2.getContentText();
+          var data2 = JSON.parse(json2);
+          var snapshotURL2 = data2.url;
+
+          //send alert email because feedback is poor
+          var options1 = {};
+          Logger.log(dutyMgrEmail);
+          options1.htmlBody = "~Feedback~" +'<br />'+'<br />'+ "Score is: " + score + '<br />'  + '<br />' + "Comment: " + comment + '<br />'  + '<br />' + "Email: " + emailAddr  + '<br />' + '<br />' + "Camera Snapshots: " + '<br />' + '<br />' + '<a href=\"' +snapshotURL+ '">Camera 1</a>' + '<br />' + '<a href=\"' +snapshotURL2+ '">Camera 2</a>';
+          MailApp.sendEmail(dutyMgrEmail, subject, '', options1);
+          sheet.getRange(k, 6).setValue("EMAIL_SENT"); // set action to "EMAIL_SENT"
+          Logger.log(score);
+          Logger.log(row);
+
+        }
+        //CX score is Good. No need to send email alert
+        else if (action == "" && score > 1.0) {
+        sheet.getRange(k, 6).setValue("Checked"); //set Action = Checked
+        }
+} //for loop
+     var limit = MailApp.getRemainingDailyQuota();
+          Logger.log("Remaining email quota " + limit);
+          if (limit == 10) {
+          MailApp.sendEmail(emailAddress, subject, "No more email alert quota left"); // send alert email as no more alerts quota left
+           }
+} //function close
